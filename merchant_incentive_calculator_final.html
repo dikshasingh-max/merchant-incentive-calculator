@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merchant Incentive Calculator</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f8f9fa;--card:#fff;--border:#dee2e6;--primary:#0d6efd;
+  --hbg:#2c3e50;--hfg:#fff;--pos:#198754;--neg:#dc3545;
+  --warn:#ffc107;--sub:#6c757d;--inp:#fff9e6;--teal:#00C2E8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:#212529;font-size:13px}
+.ctr{max-width:980px;margin:0 auto;padding:20px 20px 60px}
+h2{font-size:13px;margin:20px 0 10px;color:var(--hbg);border-bottom:2px solid var(--primary);padding-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-bottom:14px}
+
+/* Hero */
+.hero{padding:28px 32px;background:linear-gradient(135deg,#0d6efd 0%,#00b4d8 100%);border-radius:12px;color:#fff;margin-bottom:18px}
+.hero h1{font-size:24px;font-weight:800;margin-bottom:4px;color:#fff}
+.hero .tag{font-size:13px;opacity:.85;line-height:1.5;margin-bottom:14px}
+.looker-btn{display:inline-block;padding:9px 20px;background:#fff;color:var(--primary);border-radius:7px;text-decoration:none;font-weight:700;font-size:13px;transition:transform .15s,box-shadow .15s}
+.looker-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18)}
+
+/* Steps */
+.steps-list{list-style:none;padding:0;margin:0}
+.steps-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:13px;color:#495057;line-height:1.5;border-top:1px solid #f1f3f5}
+.steps-list li:first-child{border-top:none}
+.sn{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center}
+
+/* Drop zone */
+.dz{border:2px dashed #c5cdd5;border-radius:10px;padding:32px 24px;margin:0 0 12px;cursor:pointer;transition:all .2s;background:#fcfcfd;text-align:center}
+.dz:hover,.dz.drag{border-color:var(--teal);background:#f0faff}
+.dz-icon{width:44px;height:44px;margin:0 auto 8px;border-radius:8px;background:linear-gradient(135deg,#e8f4f8,#d4edff);display:flex;align-items:center;justify-content:center;font-size:20px}
+.dz p{font-size:14px;margin-bottom:3px;color:#333;font-weight:600}
+.dz .hint{font-size:12px;color:var(--sub)}
+.err-msg{color:var(--neg);font-size:12px;margin-top:6px;font-weight:600;padding:8px 12px;background:#fff5f5;border-radius:6px;display:none}
+.err-msg.show{display:block}
+
+/* Rules */
+.rules-box{background:#fff8e1;border:1px solid #ffc107;border-left:3px solid #ffc107;border-radius:6px;padding:10px 14px;font-size:12px;color:#5a4500;margin-top:10px}
+.rules-box strong{color:#5a4500}
+.rules-box ul{padding-left:16px;margin-top:4px}
+.rules-box li{margin-bottom:3px}
+
+/* Model screen */
+.back-btn{padding:6px 14px;border:1px solid var(--border);border-radius:5px;background:var(--card);cursor:pointer;font-size:12px;font-family:inherit;color:var(--hbg);transition:background .15s}
+.back-btn:hover{background:#f0f7ff;border-color:var(--primary)}
+.loaded-bar{background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{background:#28a745;color:#fff;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600}
+.loaded-bar .mx-nm{font-size:14px;font-weight:700;color:#155724}
+.loaded-bar .mx-mt{font-size:12px;color:#155724}
+.warn-bar{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:9px 14px;font-size:12px;color:#856404;margin-bottom:12px;display:none}
+.warn-bar.show{display:block}
+
+/* KPI row */
+.kpi-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.kpi{flex:1;min-width:110px;padding:10px 12px;border-radius:7px;border:1px solid var(--border);background:var(--card);text-align:center}
+.kpi .lb{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.kpi .vl{font-size:17px;font-weight:700}
+.kpi .dt{font-size:11px;color:var(--sub);margin-top:2px}
+.kpi.hl{border-left:3px solid var(--primary);background:#f0f7ff}
+
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 16px;margin-bottom:10px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 16px;margin-bottom:10px}
+.fr{display:flex;flex-direction:column;gap:3px}
+.fr label{font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.3px}
+.fr input,.fr select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--card);color:#212529;width:100%;transition:border-color .15s}
+.fr input:focus,.fr select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(13,110,253,.12)}
+.fr input.lk{background:#f0f2f4;color:var(--sub);border-color:#dee2e6;cursor:not-allowed}
+.fh{font-size:11px;color:var(--sub);font-style:italic;margin-top:2px}
+
+/* Scope toggle */
+.stog{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.sb{padding:6px 16px;border:none;background:var(--card);cursor:pointer;font-family:inherit;font-size:12px;color:var(--sub);font-weight:500;transition:all .15s}
+.sb.on{background:var(--primary);color:#fff;font-weight:600}
+
+/* Tier table */
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid #eee;white-space:nowrap}
+th{background:var(--hbg);color:var(--hfg);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+td:first-child,th:first-child{text-align:left;min-width:60px}
+tr.cr-row td{background:#f0f2f4;color:var(--sub)}
+tr.t0-row td{background:#fafbfc}
+tr.ti-row:hover td{background:#f0f7ff}
+
+/* Inputs in table */
+.ti{width:82px;padding:3px 7px;border:1px solid #ffc107;background:var(--inp);border-radius:4px;text-align:right;font-size:12px;font-family:inherit}
+.ti:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(13,110,253,.12)}
+.ti-gr{width:62px;padding:3px 7px;border:1px solid #b0d8b0;background:#f2fbf0;border-radius:4px;text-align:right;font-size:12px;font-family:inherit;color:#2a6b1f}
+.ti-gr:focus{outline:none;border-color:#28a745;box-shadow:0 0 0 2px rgba(40,167,69,.12)}
+.ti-cr{width:72px;padding:3px 7px;border:1px solid #c8d8e8;background:#f5f8fc;border-radius:4px;text-align:right;font-size:12px;font-family:inherit;color:#2c4a6e}
+.ti-cr:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(13,110,253,.12)}
+.lk-cell{display:inline-block;width:82px;padding:3px 7px;border:1px solid #dee2e6;background:#f0f2f4;border-radius:4px;text-align:right;font-size:12px;color:var(--sub)}
+.lk-sm{display:inline-block;width:62px;padding:3px 7px;border:1px solid #dee2e6;background:#f0f2f4;border-radius:4px;text-align:right;font-size:12px;color:var(--sub)}
+
+.pos{color:var(--pos);font-weight:600}
+.neg{color:var(--neg);font-weight:600}
+.err-cell{color:#856404;background:#fff3cd;border-radius:3px;padding:2px 5px;font-size:11px;font-weight:600}
+.warn-box{background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:7px 12px;font-size:12px;color:#856404;margin-top:8px;display:none}
+.warn-box.show{display:block}
+.tbl-note{font-size:11px;color:var(--sub);margin-top:6px;font-style:italic;line-height:1.5}
+
+/* Summary */
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;text-align:center}
+.sc.hl{border-left:3px solid var(--primary);background:#f0f7ff}
+.sc .sl{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.sc .sv{font-size:17px;font-weight:700}
+.sc .sd{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* SOP */
+.sop{background:#e8f4e8;border:1px solid #28a745;border-left:3px solid #28a745;border-radius:6px;padding:12px 16px;font-size:12px;color:#155724}
+.sop strong{color:#155724}
+.sop ul{padding-left:16px;margin-top:5px}
+.sop li{margin-bottom:4px}
+.shot{text-align:center;padding:10px;border:1px dashed var(--border);border-radius:6px;background:var(--card);font-size:12px;color:var(--sub);margin-top:4px}
+.div{border:none;border-top:1px solid var(--border);margin:14px 0}
+@media(max-width:700px){.g4,.g3{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}.kpi-row{flex-direction:column}}
+@media(max-width:500px){.g4,.g3,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="ctr">
+
+<!-- ════════════ UPLOAD SCREEN ════════════ -->
+<div id="up-screen">
+  <div class="hero">
+    <h1>Merchant Incentive Calculator</h1>
+    <div class="tag">Model the P&amp;L impact of a performance incentive before submitting a pilot request.<br>Upload the Looker L6M export to auto-populate all fields. All values are in local currency.</div>
+    <a class="looker-btn" href="https://looker.wolt.com/explore/financial_data/unit_economics?qid=3LJpY2PkBLwc0cmWpIPiPE&origin=share-slug&toggle=fil" target="_blank">Open Looker &rarr;</a>
+  </div>
+
+  <div class="card">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--sub);margin-bottom:10px;font-weight:600">How it works</div>
+    <ol class="steps-list">
+      <li><span class="sn">1</span>Click <strong>Open Looker</strong>. Filter by <strong>Merchant ID</strong> or Merchant Name. The query returns the last 6 months in the merchant's local currency.</li>
+      <li><span class="sn">2</span>Click <strong>Run</strong>, then <strong>Download → Excel (.xlsx)</strong>.</li>
+      <li><span class="sn">3</span>Drop the file below. Merchant name, venue count, GOV, subtotal, commission rate, courier costs and all P&amp;L lines auto-populate from the L6M average.</li>
+      <li><span class="sn">4</span>Choose scope (venue or merchant level), configure incentive tiers, and review the VP output.</li>
+      <li><span class="sn">5</span>Screenshot and submit via the Slack workflow in <strong>#merchant-incentive-requests</strong>.</li>
+    </ol>
+  </div>
+
+  <div class="dz" id="dz"
+    onclick="document.getElementById('fin').click()"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="event.preventDefault();this.classList.remove('drag');if(event.dataTransfer.files[0])handleFile(event.dataTransfer.files[0])">
+    <div class="dz-icon">📊</div>
+    <p>Drop Looker Excel file here or click to browse</p>
+    <div class="hint">.xlsx downloaded from Looker</div>
+    <input type="file" id="fin" accept=".xlsx,.xls" style="display:none" onchange="if(this.files[0])handleFile(this.files[0])">
+  </div>
+  <div class="err-msg" id="up-err"></div>
+
+  <div class="rules-box">
+    <strong>Eligibility &amp; rules</strong>
+    <ul>
+      <li>Enterprise, Mid-Market or Tier 1 · On platform 8–12+ months · VP positive</li>
+      <li>Base CR above country/tier average · No self-delivery only merchants</li>
+      <li>One target metric per merchant (GOV or Subtotal) · One incentive type (% rebate or fixed fee)</li>
+      <li><strong>Rebate cap: max 3% of GOV per period</strong></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════ MODEL SCREEN ════════════ -->
+<div id="mod-screen" style="display:none">
+
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <button class="back-btn" onclick="resetToUpload()">&larr; Upload New File</button>
+    <span style="font-size:12px;color:var(--sub)" id="mod-sub"></span>
+  </div>
+
+  <div class="loaded-bar">
+    <span class="pill">✓ Loaded</span>
+    <span class="mx-nm" id="bar-nm">—</span>
+    <span class="mx-mt" id="bar-mt">—</span>
+  </div>
+  <div class="warn-bar" id="dw"></div>
+
+  <!-- KPIs from Looker -->
+  <div class="kpi-row" id="kpis"></div>
+
+  <!-- Scope -->
+  <h2>Scope</h2>
+  <div class="card">
+    <div class="g3">
+      <div class="fr"><label>Merchant name</label><input type="text" id="mxName"></div>
+      <div class="fr">
+        <label>Venue count</label>
+        <input type="number" id="vc" class="lk" readonly>
+        <div class="fh">Auto-detected from file</div>
+      </div>
+      <div class="fr">
+        <label>Scope</label>
+        <div style="margin-top:2px">
+          <div class="stog">
+            <button class="sb on" id="btn-v" onclick="setScope('v')">Venue level</button>
+            <button class="sb" id="btn-m" onclick="setScope('m')">Merchant level</button>
+          </div>
+        </div>
+        <div class="fh" id="sc-hint">Per venue per month.</div>
+      </div>
+    </div>
+    <div class="rules-box" style="margin-top:2px">
+      Use <strong>Venue level</strong> if targets are per venue (e.g. each venue must hit a GOV threshold). Use <strong>Merchant level</strong> if targets are set in aggregate across all venues. The Looker export is venue-level — this calculator divides automatically.
+    </div>
+  </div>
+
+  <!-- Unit economics — all locked from Looker -->
+  <h2>Unit economics — L6M averages <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--sub);font-size:11px">(auto-filled · local currency)</span></h2>
+  <div class="card">
+    <div class="g4">
+      <div class="fr"><label id="gov-lbl">Avg monthly GOV / venue</label><input type="number" id="avgGOV" class="lk" readonly></div>
+      <div class="fr"><label>Avg subtotal / order</label><input type="number" id="avgSub" class="lk" readonly></div>
+      <div class="fr"><label>Avg orders / month</label><input type="number" id="avgOrd" class="lk" readonly><div class="fh" id="ord-hint">Per venue</div></div>
+      <div class="fr"><label>Delivery CR % (L6M avg)</label><input type="number" id="curCR" class="lk" readonly></div>
+      <div class="fr"><label>Wolt+ CR % (L6M avg)</label><input type="number" id="curWP" class="lk" readonly></div>
+      <div class="fr"><label>Courier cost / order</label><input type="number" id="courier" class="lk" readonly></div>
+      <div class="fr"><label>Customer fees / order</label><input type="number" id="custF" class="lk" readonly></div>
+      <div class="fr"><label>Other costs / order</label><input type="number" id="other" class="lk" readonly><div class="fh">R&amp;C + discounts + support</div></div>
+    </div>
+  </div>
+
+  <!-- Incentive config -->
+  <h2>Incentive configuration</h2>
+  <div class="card">
+    <div class="g2" style="margin-bottom:14px">
+      <div class="fr">
+        <label>Target metric</label>
+        <select id="metric" onchange="onMetricChange()">
+          <option value="sub">Average subtotal per order</option>
+          <option value="gov">Gross Order Value (GOV / month)</option>
+        </select>
+      </div>
+      <div class="fr">
+        <label>Incentive type</label>
+        <select id="itype" onchange="switchType()">
+          <option value="pct">Type 1 — % rebate (reduces delivery CR)</option>
+          <option value="fee">Type 2 — Fixed fee rebate per venue</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Type 1 -->
+    <div id="t1-blk">
+      <table>
+        <thead><tr>
+          <th>Tier</th>
+          <th id="h1t">Target</th>
+          <th>Growth %</th>
+          <th>Rebate %</th>
+          <th>Delivery CR %</th>
+          <th>Wolt+ CR %</th>
+          <th>VP / order</th>
+          <th id="h1g">Gross VP</th>
+          <th>VP %</th>
+          <th>VP diff</th>
+        </tr></thead>
+        <tbody id="t1-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Type 2 -->
+    <div id="t2-blk" style="display:none">
+      <table>
+        <thead><tr>
+          <th>Tier</th>
+          <th id="h2t">Target</th>
+          <th>Growth %</th>
+          <th>Fixed fee / venue</th>
+          <th id="h2mx">→ per merchant</th>
+          <th>Delivery CR %</th>
+          <th>Wolt+ CR %</th>
+          <th>VP / order</th>
+          <th id="h2g">Gross VP</th>
+          <th>VP %</th>
+          <th>VP diff</th>
+        </tr></thead>
+        <tbody id="t2-body"></tbody>
+      </table>
+    </div>
+
+    <div class="warn-box" id="wbox">⚠ <span id="wtxt"></span></div>
+    <div class="tbl-note">
+      <strong>Current:</strong> locked — L6M actuals. &nbsp;
+      <strong>Tier 0:</strong> base threshold = current; Delivery CR editable (default = current). &nbsp;
+      <strong>Tier 1–5:</strong> targets auto-set +10% per tier; Delivery CR = Tier 0 CR − rebate % for that tier (auto-calculated, not editable). &nbsp;
+      Growth % and target are bidirectional — edit either one. Last column shows VP uplift vs current.
+    </div>
+  </div>
+
+  <!-- P&L output -->
+  <h2>P&amp;L output</h2>
+  <div class="sum-grid" id="sumgrid"></div>
+
+  <div class="div"></div>
+
+  <!-- SOP -->
+  <h2>How to submit</h2>
+  <div class="card">
+    <div class="sop">
+      <strong>Submission process — #merchant-incentive-requests</strong>
+      <ul>
+        <li><strong>Step 1:</strong> Screenshot the P&amp;L output section above.</li>
+        <li><strong>Step 2:</strong> Post in <strong>#merchant-incentive-requests</strong> via the Slack workflow. Fill in all required fields (merchant name, country, incentive type, tier thresholds, duration).</li>
+        <li><strong>Step 3:</strong> Attach the screenshot. Finance approval is mandatory before any OpsTool configuration.</li>
+        <li><strong>Approvers:</strong> Christian Danford (christian.danford@wolt.com) · Diksha Singh (diksha.singh@wolt.com) · Mariana Rossmann (mariana.rossmann@wolt.com)</li>
+        <li><strong>Step 4:</strong> Once approved, S&amp;O configures the rule in OpsTool and confirms in-thread.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="shot">📸 <strong>Screenshot this page</strong> before submitting · attach to your request in <strong>#merchant-incentive-requests</strong></div>
+
+</div><!-- /mod-screen -->
+</div><!-- /ctr -->
+
+<script>
+// ═══════════ COLUMN MAP ═══════════
+var CM={
+  gov:['GOV','Gross Order Volume (GOV)','Gross Order Volume'],
+  gov_sub:['GOV_SUBTOTAL','GOV Subtotal'],
+  gov_tax:['GOV_TAX_SUBTOTAL','GOV Tax Subtotal'],
+  comm_rev:['COMMISSION_REVENUE','Commission Revenue'],
+  cust_fee:['CUSTOMER_FEES','Customer Fees'],
+  courier:['COURIER_COSTS','Courier Costs','COURIER_HOURLY_PAY','Courier Hourly Pay'],
+  refunds:['REFUNDS_AND_CREDITS','Refunds and Credits','Refunds & Credits'],
+  discounts:['DISCOUNTS','Discounts & promotions','Discounts & Promotions','Discounts'],
+  support:['SUPPORT','Total Support Cost','Support'],
+  pmt:['PAYMENT_TRANSACTION_FEES','Payment Transaction Fees'],
+  redeliveries:['REDELIVERIES','Redeliveries'],
+  vp:['VARIABLE_PROFIT','Variable Profit'],
+  orders:['PURCHASE_COUNT','Purchase Count'],
+};
+var CURR={'EUR':'€','GBP':'£','SEK':'kr','DKK':'kr','NOK':'kr','PLN':'zł','CZK':'Kč','HUF':'Ft','RON':'lei','AZN':'₼','GEL':'₾','ILS':'₪'};
+
+function cl(h){return h.replace(/[\u2193\u21B3\u2192\u2190\u279C\uFEFF]/g,'').trim();}
+
+function cv(row,key){
+  var cc=CM[key]; if(!cc) return 0;
+  for(var i=0;i<cc.length;i++){
+    var v=row[cc[i]]; if(v!==undefined&&v!=='') return parseFloat(v)||0;
+    for(var k in row) if(cl(k).toLowerCase()===cc[i].toLowerCase()&&row[k]!=='') return parseFloat(row[k])||0;
+  }
+  return 0;
+}
+
+// ═══════════ FILE HANDLING ═══════════
+function handleFile(file){
+  var e=document.getElementById('up-err');
+  e.textContent=''; e.classList.remove('show');
+  if(!file.name.match(/\.(xlsx|xls)$/i)){e.textContent='Please upload an .xlsx file from Looker.';e.classList.add('show');return;}
+  if(typeof XLSX==='undefined'){e.textContent='Parser loading — try again in a moment.';e.classList.add('show');return;}
+  var r=new FileReader();
+  r.onload=function(ev){
+    try{
+      var wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length) throw new Error('File has no data rows.');
+      processRows(rows);
+      document.getElementById('fin').value='';
+    }catch(err){e.textContent='Error: '+err.message;e.classList.add('show');}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+// ═══════════ PROCESS ROWS ═══════════
+function processRows(raw){
+  var rows=raw.map(function(r){var o={};for(var k in r) o[cl(k)]=r[k];return o;});
+  var keys=Object.keys(rows[0]);
+
+  function fc(pats){
+    for(var p=0;p<pats.length;p++)
+      for(var k=0;k<keys.length;k++)
+        if(keys[k].toLowerCase()===pats[p].toLowerCase()||new RegExp(pats[p],'i').test(keys[k])) return keys[k];
+    return null;
+  }
+
+  var mCol=fc(['ACTIVE_MONTH','Timestamp Month','active_month','month']);
+  var subCol=fc(['SUBSCRIPTION','Business Line Segment','segment','subscription']);
+  var nmCol=fc(['Merchant Name','MERCHANT_NAME','merchant_name']);
+  var brCol=fc(['Brand Name','BRAND_NAME','brand_name']);
+  var vidCol=fc(['Venue ID','VENUE_ID','venue_id']);
+  var crDCol=fc(['Commission % Delivery','Commission % Wolt delivery','COMMISSION_PCT_DELIVERY','Commission % \\(calculated\\)']);
+  var crWCol=fc(['Commission % Wolt Plus','Commission % Wolt\\+','COMMISSION_PCT_WOLT_PLUS']);
+  var subOCol=fc(['Subtotal per order','SUBTOTAL_PER_ORDER']);
+  var currCol=fc(['Currency','CURRENCY','currency']);
+
+  if(!mCol) throw new Error('No month column. Make sure "Timestamp Month" is in the Looker export.');
+
+  // Currency
+  var curr='';
+  if(currCol) for(var i=0;i<rows.length;i++){if(rows[i][currCol]){curr=String(rows[i][currCol]).trim();break;}}
+  var sym=CURR[curr]||'';
+
+  // Merchant name
+  var name='';
+  if(nmCol&&rows[0][nmCol]) name=String(rows[0][nmCol]).trim();
+  else if(brCol&&rows[0][brCol]) name=String(rows[0][brCol]).trim();
+
+  // Parse months → last 6 complete
+  var now=new Date(), curM=new Date(now.getFullYear(),now.getMonth(),1);
+  function pm(v){
+    if(!v) return null;
+    if(typeof v==='number'&&v>1&&v<300000) return new Date((v-25569)*86400000);
+    if(v instanceof Date) return v;
+    return new Date(v);
+  }
+  var ms={};
+  rows.forEach(function(r){var d=pm(r[mCol]);if(d&&!isNaN(d)){var m=d.toISOString().slice(0,7);ms[m]=true;}});
+  var bl=Object.keys(ms).sort().filter(function(m){return new Date(m+'-01')<curM;}).slice(-6);
+  var nBl=bl.length;
+  if(!nBl) throw new Error('No complete months found. Need at least 1 month before current.');
+
+  var blR=rows.filter(function(r){var d=pm(r[mCol]);if(!d||isNaN(d))return false;return bl.indexOf(d.toISOString().slice(0,7))>=0;});
+
+  // Venue count = distinct Venue IDs
+  var vids={};
+  if(vidCol) blR.forEach(function(r){var v=r[vidCol];if(v&&String(v).trim()) vids[String(v).trim()]=true;});
+  var venues=Object.keys(vids).length||1;
+
+  function avg(arr,key){return arr.length?arr.reduce(function(s,r){return s+cv(r,key);},0)/nBl:0;}
+
+  // GOV total (sum all venues / nBl)
+  var govTot=avg(blR,'gov');
+  var ordTot=avg(blR,'orders');
+  var subTot=avg(blR,'gov_sub')+avg(blR,'gov_tax');
+
+  // Subtotal per order — weighted avg
+  var subPO=0;
+  if(subOCol){
+    var sn=0,sd=0;
+    blR.forEach(function(r){var s=parseFloat(r[subOCol])||0,o=cv(r,'orders');if(s>0&&o>0){sn+=s*o;sd+=o;}});
+    if(sd>0) subPO=sn/sd;
+  }
+  if(!subPO&&ordTot>0) subPO=subTot/ordTot;
+  if(!subPO&&ordTot>0) subPO=govTot/ordTot;
+
+  // Commission rates — weighted avg
+  var crD=0,crW=0;
+  if(crDCol){
+    var dn=0,dd=0;
+    blR.forEach(function(r){var v=parseFloat(r[crDCol])||0,o=cv(r,'orders');if(v>0&&o>0){dn+=v*o;dd+=o;}});
+    if(dd>0){crD=dn/dd;if(crD>1)crD=crD/100;}
+  }
+  if(!crD){var cb=subTot>0?subTot:govTot;crD=cb>0?avg(blR,'comm_rev')/cb:0;}
+
+  if(crWCol){
+    var wn=0,wd=0;
+    blR.forEach(function(r){var v=parseFloat(r[crWCol])||0,o=cv(r,'orders');if(v>0&&o>0){wn+=v*o;wd+=o;}});
+    if(wd>0){crW=wn/wd;if(crW>1)crW=crW/100;}
+  }
+
+  // Costs per order
+  var courierTot=Math.abs(avg(blR,'courier'));
+  var rc=Math.abs(avg(blR,'refunds'));
+  var disc=Math.abs(avg(blR,'discounts'));
+  var sup=Math.abs(avg(blR,'support'));
+  var pmt=Math.abs(avg(blR,'pmt'));
+  var rdel=Math.abs(avg(blR,'redeliveries'));
+  var custF=avg(blR,'cust_fee');
+  var vpTot=avg(blR,'vp');
+  function po(v){return ordTot>0?v/ordTot:0;}
+
+  var courierPO=Math.abs(po(courierTot));
+  var custFPO=po(custF);
+  var otherPO=po(rc+disc+sup+pmt+rdel);
+  var vpPO=po(vpTot);
+
+  var warns=[];
+  if(nBl<6) warns.push('Only '+nBl+' complete month(s) — ideally 6 for full L6M.');
+  if(!courierTot) warns.push('Courier Costs = 0. Self-delivery merchant or column missing.');
+  if(!name) warns.push('Merchant name not detected — enter manually.');
+
+  window._M={
+    name:name,curr:curr,sym:sym,
+    venues:venues,nBl:nBl,bl:bl,
+    govTot:govTot,govPV:govTot/venues,
+    ordTot:ordTot,ordPV:ordTot/venues,
+    subPO:subPO,
+    crD:crD*100,crW:crW*100,
+    courierPO:courierPO,custFPO:custFPO,otherPO:otherPO,
+    vpPO:vpPO,warns:warns,
+  };
+  renderModel();
+}
+
+// ═══════════ RENDER ═══════════
+function renderModel(){
+  var M=window._M;
+  document.getElementById('up-screen').style.display='none';
+  document.getElementById('mod-screen').style.display='block';
+
+  document.getElementById('mod-sub').textContent=
+    (M.name||'Unknown')+' · '+M.venues+' venue'+(M.venues!==1?'s':'')+
+    ' · L'+M.nBl+'M ('+M.bl[0]+' – '+M.bl[M.nBl-1]+')'+
+    (M.curr?' · '+M.curr:'');
+
+  document.getElementById('bar-nm').textContent=M.name||'(unknown)';
+  document.getElementById('bar-mt').textContent=
+    M.venues+' venue'+(M.venues!==1?'s':'')+
+    ' · '+Math.round(M.ordTot).toLocaleString()+' orders/mo · '+
+    M.sym+Math.round(M.govTot).toLocaleString()+' GOV/mo · L'+M.nBl+'M';
+
+  if(M.warns.length){
+    var dw=document.getElementById('dw');
+    dw.innerHTML='<strong>⚠ Notes:</strong> '+M.warns.join(' · ');
+    dw.classList.add('show');
+  }
+
+  function kpi(l,v,d,hl){
+    return '<div class="kpi'+(hl?' hl':'')+'">'+
+      '<div class="lb">'+l+'</div><div class="vl">'+v+'</div>'+
+      (d?'<div class="dt">'+d+'</div>':'')+
+      '</div>';
+  }
+  var k='';
+  k+=kpi('Total GOV/mo',M.sym+Math.round(M.govTot).toLocaleString(),'all venues');
+  k+=kpi('Orders/mo',Math.round(M.ordTot).toLocaleString(),'all venues');
+  k+=kpi('Subtotal/order',M.sym+fmt(M.subPO||0,2),'incl VAT');
+  k+=kpi('Delivery CR %',(M.crD||0).toFixed(2)+'%','L6M avg',true);
+  k+=kpi('Current VP/order',M.sym+fmt(M.vpPO||0,2),'from Looker',true);
+  k+=kpi('Courier/order',M.sym+fmt(M.courierPO||0,2));
+  document.getElementById('kpis').innerHTML=k;
+
+  document.getElementById('mxName').value=M.name||'';
+  document.getElementById('vc').value=M.venues;
+  fillUE('v');
+  buildTables();
+  recalc();
+}
+
+// ═══════════ SCOPE ═══════════
+var SC='v';
+function setScope(s){
+  SC=s;
+  document.getElementById('btn-v').classList.toggle('on',s==='v');
+  document.getElementById('btn-m').classList.toggle('on',s==='m');
+  var vc=window._M?window._M.venues:1;
+  document.getElementById('gov-lbl').textContent=s==='v'?'Avg monthly GOV / venue':'Total monthly GOV (all venues)';
+  document.getElementById('ord-hint').textContent=s==='v'?'Per venue':'All venues';
+  document.getElementById('sc-hint').textContent=s==='v'?'Per venue per month.':'Total across all venues per month.';
+  document.getElementById('h2mx').textContent='→ per merchant ('+vc+' venues)';
+  if(window._M) fillUE(s);
+  resetTierEdits();
+  fillTierDefaults();
+  recalc();
+}
+
+function fillUE(s){
+  var M=window._M; if(!M) return;
+  document.getElementById('avgGOV').value=(s==='v'?M.govPV:M.govTot).toFixed(2);
+  document.getElementById('avgSub').value=(M.subPO||0).toFixed(2);
+  document.getElementById('avgOrd').value=Math.round(s==='v'?M.ordPV:M.ordTot);
+  document.getElementById('curCR').value=(M.crD||0).toFixed(2);
+  document.getElementById('curWP').value=(M.crW||0).toFixed(2);
+  document.getElementById('courier').value=(M.courierPO||0).toFixed(2);
+  document.getElementById('custF').value=(M.custFPO||0).toFixed(2);
+  document.getElementById('other').value=(M.otherPO||0).toFixed(2);
+}
+
+function resetToUpload(){
+  document.getElementById('mod-screen').style.display='none';
+  document.getElementById('up-screen').style.display='block';
+  document.getElementById('dw').classList.remove('show');
+  window._M=null; SC='v';
+  document.getElementById('btn-v').classList.add('on');
+  document.getElementById('btn-m').classList.remove('on');
+}
+
+// ═══════════ TIER TABLES ═══════════
+var TLBLS=['Current','Tier 0','Tier 1','Tier 2','Tier 3','Tier 4','Tier 5'];
+
+function buildTables(){
+  buildT('t1','pct');
+  buildT('t2','fee');
+  fillTierDefaults();
+}
+
+function buildT(px,type){
+  var body=document.getElementById(px+'-body');
+  body.innerHTML='';
+  TLBLS.forEach(function(lbl,i){
+    var isCur=i===0, isT0=i===1;
+    var tr=document.createElement('tr');
+    tr.className=isCur?'cr-row':isT0?'t0-row':'ti-row';
+
+    var c='<td>'+lbl+'</td>';
+
+    // Target threshold
+    c+='<td>'+(isCur
+      ? '<span class="lk-cell" id="'+px+'t'+i+'">—</span>'
+      : '<input class="ti" id="'+px+'t'+i+'" type="text" inputmode="decimal" oninput="onTgt(this,\''+px+'\','+i+')">'
+    )+'</td>';
+
+    // Growth %
+    c+='<td>'+(i<=1
+      ? '<span class="lk-sm" id="'+px+'gr'+i+'">'+(isCur?'—':'base')+'</span>'
+      : '<input class="ti-gr" id="'+px+'gr'+i+'" type="text" inputmode="decimal" oninput="onGr(this,\''+px+'\','+i+')">'
+    )+'</td>';
+
+    if(type==='pct'){
+      // Rebate %
+      c+='<td>'+(isCur
+        ? '<span class="lk-sm" id="'+px+'r'+i+'">—</span>'
+        : '<input class="ti" id="'+px+'r'+i+'" type="text" inputmode="decimal" placeholder="0,00" oninput="recalc()">'
+      )+'</td>';
+      // Delivery CR — current locked, Tier0 editable, Tier1+ auto = T0CR - rebate (locked display)
+      c+='<td>'+(isCur
+        ? '<span class="lk-sm" id="'+px+'c'+i+'">—</span>'
+        : isT0
+          ? '<input class="ti-cr" id="'+px+'c'+i+'" type="text" inputmode="decimal" oninput="recalc()">'
+          : '<span class="lk-sm" id="'+px+'c'+i+'">—</span>'
+      )+'</td>';
+    } else {
+      // Fixed fee
+      c+='<td>'+(isCur
+        ? '<span class="lk-cell" id="'+px+'f'+i+'">—</span>'
+        : '<input class="ti" id="'+px+'f'+i+'" type="text" inputmode="decimal" placeholder="0" oninput="recalc()">'
+      )+'</td>';
+      // → per merchant auto
+      c+='<td id="'+px+'mx'+i+'"><span style="color:var(--sub);font-size:11px">—</span></td>';
+      // Delivery CR for Type2 — same logic: T0 editable, others locked auto
+      c+='<td>'+(isCur
+        ? '<span class="lk-sm" id="'+px+'c'+i+'">—</span>'
+        : isT0
+          ? '<input class="ti-cr" id="'+px+'c'+i+'" type="text" inputmode="decimal" oninput="recalc()">'
+          : '<span class="lk-sm" id="'+px+'c'+i+'">—</span>'
+      )+'</td>';
+    }
+
+    // Wolt+ CR — ONLY Tier0 editable; current and Tier1+ locked
+    c+='<td>'+(isCur
+      ? '<span class="lk-sm" id="'+px+'w'+i+'">—</span>'
+      : isT0
+        ? '<input class="ti-cr" id="'+px+'w'+i+'" type="text" inputmode="decimal" oninput="recalc()">'
+        : '<span class="lk-sm" id="'+px+'w'+i+'">—</span>'
+    )+'</td>';
+
+    // VP, Gross VP, VP%, GOV diff
+    c+='<td id="'+px+'vp'+i+'"><span style="color:var(--sub)">—</span></td>';
+    c+='<td id="'+px+'gv'+i+'"><span style="color:var(--sub)">—</span></td>';
+    c+='<td id="'+px+'vp_pct'+i+'"><span style="color:var(--sub)">—</span></td>';
+    c+='<td id="'+px+'gdiff'+i+'"><span style="color:var(--sub)">—</span></td>';
+
+    tr.innerHTML=c;
+    body.appendChild(tr);
+  });
+}
+
+function resetTierEdits(){
+  document.querySelectorAll('.ti,.ti-gr,.ti-cr').forEach(function(el){delete el.dataset.ue;});
+}
+
+function fillTierDefaults(){
+  var M=window._M; if(!M) return;
+  var metric=document.getElementById('metric').value;
+  var type=document.getElementById('itype').value;
+  var px=type==='pct'?'t1':'t2';
+
+  var subPO=M.subPO||0;
+  var curCR=M.crD||0;
+  var curWP=M.crW||0;
+
+  // govBase = what the current row target shows (in display units)
+  // Venue scope: k per venue; Merchant scope: k total
+  var govBase = SC==='v' ? M.govPV/1000 : M.govTot/1000;
+
+  // Current row locked display
+  var curTgtDisplay = metric==='sub' ? fmt(subPO,2) : fmt(govBase,2)+'k';
+  var el=document.getElementById(px+'t0');
+  if(el) el.textContent=curTgtDisplay;
+  var elc=document.getElementById(px+'c0');
+  if(elc) elc.textContent=fmt(curCR,2)+'%';
+  var elw=document.getElementById(px+'w0');
+  if(elw) elw.textContent=fmt(curWP,2)+'%';
+  if(type==='pct'){var elr=document.getElementById(px+'r0');if(elr)elr.textContent='—';}
+
+  // base for tier inputs: subtotal in raw €, GOV in k (scope-aware)
+  var base = metric==='sub' ? subPO : govBase;
+
+  for(var i=1;i<TLBLS.length;i++){
+    // Target: Tier0 = base, Tier1 = base*1.1, ...
+    var tgt=base*Math.pow(1.1,i-1);
+    var tel=document.getElementById(px+'t'+i);
+    if(tel&&!tel.dataset.ue) setVal(tel,tgt,2);
+
+    // Growth %: Tier0 locked "base", Tier1+ = 10
+    if(i>=2){var gel=document.getElementById(px+'gr'+i);if(gel&&!gel.dataset.ue) gel.value='10,0';}
+
+    // Wolt+ CR: prefill current for all editable tiers
+    var wel=document.getElementById(px+'w'+i);
+    if(wel&&!wel.dataset.ue) setVal(wel,curWP,2);
+
+    // Tier 0 CR: prefill current (editable)
+    if(i===1){var cel=document.getElementById(px+'c1');if(cel&&!cel.dataset.ue) setVal(cel,curCR,2);}
+    // Tier1+ CR locked spans — set after recalc via updateCRSpans
+  }
+}
+
+// ═══════════ BIDIRECTIONAL GROWTH ═══════════
+function onTgt(el,px,i){
+  el.dataset.ue='1';
+  if(i>=2){
+    var prev=document.getElementById(px+'t'+(i-1));
+    var pv=prev?pn(prev.value):0;
+    var tv=pn(el.value);
+    var gel=document.getElementById(px+'gr'+i);
+    if(gel&&pv>0&&tv>0) gel.value=((tv/pv-1)*100).toFixed(1);
+  }
+  propagate(px,i);
+  recalc();
+}
+function onGr(el,px,i){
+  el.dataset.ue='1';
+  var prev=document.getElementById(px+'t'+(i-1));
+  var pv=prev?pn(prev.value):0;
+  var gr=pn(el.value);
+  var tel=document.getElementById(px+'t'+i);
+  var metric=document.getElementById('metric').value;
+  var dec=metric==='sub'?2:3;
+  if(tel&&pv>0){setVal(tel,pv*(1+gr/100),dec);tel.dataset.ue='1';}
+  propagate(px,i);
+  recalc();
+}
+function propagate(px,from){
+  var metric=document.getElementById('metric').value;
+  var dec=metric==='sub'?2:3;
+  for(var j=from+1;j<TLBLS.length;j++){
+    var prev=document.getElementById(px+'t'+(j-1));
+    var gel=document.getElementById(px+'gr'+j);
+    var tel=document.getElementById(px+'t'+j);
+    if(!prev||!gel||!tel||tel.dataset.ue) continue;
+    var pv=pn(prev.value);
+    var gr=pn(gel.value)||10;
+    if(pv>0) setVal(tel,pv*(1+gr/100),dec);
+  }
+}
+
+function onMetricChange(){
+  resetTierEdits();
+  fillTierDefaults();
+  recalc();
+}
+function switchType(){
+  var t=document.getElementById('itype').value;
+  document.getElementById('t1-blk').style.display=t==='pct'?'':'none';
+  document.getElementById('t2-blk').style.display=t==='fee'?'':'none';
+  resetTierEdits();
+  fillTierDefaults();
+  recalc();
+}
+
+// ═══════════ HELPERS ═══════════
+// European locale number parsing — comma as decimal separator
+function pn(v){
+  if(v===null||v===undefined) return 0;
+  var s=String(v).trim();
+  if(s.indexOf(',')!==-1&&s.indexOf('.')!==-1) s=s.replace(/[.]/g,'').replace(',','.');
+  else if(s.indexOf(',')!==-1) s=s.replace(',','.');
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function fmt(v,dp){
+  if(isNaN(v)) return '';
+  return v.toFixed(dp).replace('.',',');
+}
+function setVal(el,v,dp){if(el) el.value=fmt(v,dp);}
+function gn(id){var el=document.getElementById(id);if(!el)return 0;return pn(el.value);}
+function gs(id){var el=document.getElementById(id);return el?el.value||'':'';}
+
+function fv(v){
+  if(v===null||isNaN(v))return '<span style="color:var(--sub)">—</span>';
+  var s=(v>=0?'+':'')+v.toFixed(2);
+  return v>0.001?'<span class="pos">'+s+'</span>':v<-0.001?'<span class="neg">'+s+'</span>':s;
+}
+function fk(v){
+  if(v===null||isNaN(v))return '<span style="color:var(--sub)">—</span>';
+  var s=(v>=0?'+':'')+( v/1000).toFixed(2)+'k';
+  return v>0.01?'<span class="pos">'+s+'</span>':v<-0.01?'<span class="neg">'+s+'</span>':s;
+}
+
+// ═══════════ RECALC ═══════════
+function recalc(){
+  if(!window._M) return;
+  var M=window._M;
+  var vc=M.venues;
+  var metric=document.getElementById('metric').value;
+  var type=document.getElementById('itype').value;
+  var px=type==='pct'?'t1':'t2';
+
+  // Headers
+  var th=metric==='sub'?'Target subtotal (€)':'Target GOV (k/mo)';
+  document.getElementById('h1t').textContent=th;
+  document.getElementById('h2t').textContent=th;
+  var gh=SC==='m'?'Gross VP (k total)':'Gross VP (k/venue)';
+  document.getElementById('h1g').textContent=gh;
+  document.getElementById('h2g').textContent=gh;
+  document.getElementById('h2mx').textContent='→ per merchant ('+vc+' venues)';
+
+  // Base per-venue values (use model directly — unit econ fields are locked/display only)
+  var govPV=M.govPV;   // always per-venue
+  var subPO=M.subPO||0;
+  var ordPV=M.ordPV;
+  if(!ordPV&&govPV>0&&subPO>0) ordPV=govPV/subPO;
+
+  // gov_per_order ratio — used to scale orders at each tier
+  // orders_tier = GOV_tier / gov_per_order_ratio
+  var govPerOrd=ordPV>0?govPV/ordPV:subPO; // GOV per order at base level
+
+  var curCR=parseFloat(document.getElementById('curCR').value)||0;
+  var curWP=parseFloat(document.getElementById('curWP').value)||0;
+  var courier=parseFloat(document.getElementById('courier').value)||0;
+  var custF=parseFloat(document.getElementById('custF').value)||0;
+  var other=parseFloat(document.getElementById('other').value)||0;
+
+  // 3% cap per venue
+  var cap=govPV*0.03;
+
+  // ── Current row ──
+  var curVPO=subPO*(curCR/100+curWP/100)+custF-courier-other;
+  var curGrossV=curVPO*ordPV;           // per venue
+  // Display GOV: venue scope = per-venue, merchant scope = total
+  var curGovDisp=SC==='m'?govPV*vc:govPV;
+  var curGrossDisp=SC==='m'?curGrossV*vc:curGrossV;
+  var curVPpct=curGovDisp>0?curGrossDisp/curGovDisp*100:0;
+
+  // Current row target display: GOV in k (scope-aware)
+  var tgtDisp=metric==='sub'?fmt(subPO,2):fmt(curGovDisp/1000,2)+'k';
+  var sp0t=document.getElementById(px+'t0');if(sp0t) sp0t.textContent=tgtDisp;
+  var sp0c=document.getElementById(px+'c0');if(sp0c) sp0c.textContent=fmt(curCR,2)+'%';
+  var sp0w=document.getElementById(px+'w0');if(sp0w) sp0w.textContent=fmt(curWP,2)+'%';
+  document.getElementById(px+'vp0').innerHTML=fv(curVPO);
+  document.getElementById(px+'gv0').innerHTML=fk(curGrossDisp);
+  document.getElementById(px+'vp_pct0').innerHTML='<span style="color:var(--sub)">'+curVPpct.toFixed(2)+'%</span>';
+  document.getElementById(px+'gdiff0').innerHTML='<span style="color:var(--sub)">base</span>';
+
+  var warns=[],maxRebTier=null,maxReb=0,maxRebGross=null,maxRebVpDiff=null;
+
+  // Tier 0 CR and WP (editable)
+  var t0CRel=document.getElementById(px+'c1');
+  var t0CR=t0CRel&&t0CRel.value!==''?parseFloat(t0CRel.value)||curCR:curCR;
+  var t0WPel=document.getElementById(px+'w1');
+  var t0WP=t0WPel&&t0WPel.value!==''?parseFloat(t0WPel.value)||curWP:curWP;
+
+  if(type==='pct'){
+    for(var i=1;i<TLBLS.length;i++){
+      var reb=gn(px+'r'+i);
+
+      // Delivery CR = T0 CR - rebate (auto for Tier1+)
+      var tierCR=t0CR-reb;
+      // Wolt+ CR = T0 WP for all tiers (locked spans for Tier1+)
+      var tierWP=t0WP;
+
+      // Update locked CR and WP spans for Tier1+
+      if(i>1){
+        var crSp=document.getElementById(px+'c'+i);
+        if(crSp) crSp.textContent=fmt(tierCR,2)+'%';
+        var wpSp=document.getElementById(px+'w'+i);
+        if(wpSp) wpSp.textContent=fmt(t0WP,2)+'%';
+      }
+
+      // tgtVal: subtotal in raw €, GOV in k (scope-aware: venue or merchant total)
+      var tgtEl=document.getElementById(px+'t'+i);
+      var tgtVal=tgtEl?pn(tgtEl.value):0;
+      var govTierDisp = metric==='sub'
+        ? (tgtVal>0 ? tgtVal*(SC==='v'?M.govPV:M.govTot)/subPO : (SC==='v'?M.govPV:M.govTot))
+        : (tgtVal>0 ? tgtVal*1000 : (SC==='v'?M.govPV:M.govTot));  // k→raw
+      // govTier always per-venue for VP calculation
+      var govTier = SC==='m' ? govTierDisp/vc : govTierDisp;
+
+      // Orders at this tier scale proportionally with GOV
+      var ordTier=govPerOrd>0?govTier/govPerOrd:ordPV;
+
+      // Cap check (rebate is % of GOV per venue)
+      var rebAmt=reb/100*govTier;
+      if(rebAmt>govTier*0.03+0.001){
+        document.getElementById(px+'vp'+i).innerHTML='<span class="err-cell">⚠ Exceeds 3% cap</span>';
+        document.getElementById(px+'gv'+i).innerHTML='<span class="err-cell">cap: '+(govTier*0.03).toFixed(0)+'</span>';
+        document.getElementById(px+'vp_pct'+i).innerHTML='<span style="color:var(--sub)">—</span>';
+        document.getElementById(px+'gdiff'+i).innerHTML='<span style="color:var(--sub)">—</span>';
+        warns.push('Tier '+i+': rebate '+reb.toFixed(2)+'% exceeds 3% GOV cap');
+        continue;
+      }
+      if(reb>0) maxReb=Math.max(maxReb,reb);
+
+      // VP/order = sub*(effectiveCR/100 + tierWP/100) + custF - courier - other
+      var vpo=subPO*(tierCR/100+tierWP/100)+custF-courier-other;
+      var grossV=vpo*ordTier; // per venue
+      var govDispTier=SC==='m'?govTier*vc:govTier;
+      var grossDisp=SC==='m'?grossV*vc:grossV;
+      var vpPct=govDispTier>0?grossDisp/govDispTier*100:0;
+      var vpDiff=grossDisp-curGrossDisp;
+
+      document.getElementById(px+'vp'+i).innerHTML=fv(vpo);
+      document.getElementById(px+'gv'+i).innerHTML=fk(grossDisp);
+      document.getElementById(px+'vp_pct'+i).innerHTML='<span class="'+(vpPct>0?'pos':'neg')+'">'+vpPct.toFixed(2)+'%</span>';
+      document.getElementById(px+'gdiff'+i).innerHTML=fk(vpDiff);
+
+      if(reb>=maxReb&&reb>0){maxRebTier=i;maxReb=reb;maxRebGross=grossDisp;maxRebVpDiff=vpDiff;}
+    }
+
+  } else {
+    for(var j=1;j<TLBLS.length;j++){
+      var fee=gn(px+'f'+j);
+      var mxFee=fee*vc;
+      var mxEl=document.getElementById(px+'mx'+j);
+      if(mxEl) mxEl.innerHTML=mxFee>0?'<strong>'+mxFee.toLocaleString()+'</strong>':'<span style="color:var(--sub);font-size:11px">—</span>';
+
+      // All tiers use T0 CR (fixed fee doesn't reduce CR)
+      if(j>1){
+        var crSp3=document.getElementById(px+'c'+j); if(crSp3) crSp3.textContent=fmt(t0CR,2)+'%';
+        var wpSp3=document.getElementById(px+'w'+j); if(wpSp3) wpSp3.textContent=fmt(t0WP,2)+'%';
+      }
+
+      var tgtEl2=document.getElementById(px+'t'+j);
+      var tgtVal2=tgtEl2?pn(tgtEl2.value):0;
+      var govTierDisp2 = metric==='sub'
+        ? (tgtVal2>0 ? tgtVal2*(SC==='v'?M.govPV:M.govTot)/subPO : (SC==='v'?M.govPV:M.govTot))
+        : (tgtVal2>0 ? tgtVal2*1000 : (SC==='v'?M.govPV:M.govTot));
+      var govTier2 = SC==='m' ? govTierDisp2/vc : govTierDisp2;
+      var ordTier2=govPerOrd>0?govTier2/govPerOrd:ordPV;
+
+      if(fee>govTier2*0.03+0.001){
+        document.getElementById(px+'vp'+j).innerHTML='<span class="err-cell">⚠ Exceeds 3% cap</span>';
+        document.getElementById(px+'gv'+j).innerHTML='<span class="err-cell">cap: '+(govTier2*0.03).toFixed(0)+'</span>';
+        document.getElementById(px+'vp_pct'+j).innerHTML='<span style="color:var(--sub)">—</span>';
+        document.getElementById(px+'gdiff'+j).innerHTML='<span style="color:var(--sub)">—</span>';
+        warns.push('Tier '+j+': fee exceeds 3% GOV cap');
+        continue;
+      }
+      var rebPct2=govTier2>0?fee/govTier2*100:0;
+      if(fee>0) maxReb=Math.max(maxReb,rebPct2);
+
+      var fpo=ordTier2>0?fee/ordTier2:0;
+      var vpo2=subPO*(t0CR/100+t0WP/100)+custF-courier-other-fpo;
+      var grossV2=vpo2*ordTier2;
+      var govDispT2=SC==='m'?govTier2*vc:govTier2;
+      var grossDisp2=SC==='m'?grossV2*vc:grossV2;
+      var vpPct2=govDispT2>0?grossDisp2/govDispT2*100:0;
+      var vpDiff2=grossDisp2-curGrossDisp;
+
+      document.getElementById(px+'vp'+j).innerHTML=fv(vpo2);
+      document.getElementById(px+'gv'+j).innerHTML=fk(grossDisp2);
+      document.getElementById(px+'vp_pct'+j).innerHTML='<span class="'+(vpPct2>0?'pos':'neg')+'">'+vpPct2.toFixed(2)+'%</span>';
+      document.getElementById(px+'gdiff'+j).innerHTML=fk(vpDiff2);
+
+      if(rebPct2>=maxReb&&fee>0){maxRebTier=j;maxRebGross=grossDisp2;maxRebVpDiff=vpDiff2;}
+    }
+  }
+
+  // Warning box
+  var wb=document.getElementById('wbox');
+  if(warns.length){wb.classList.add('show');document.getElementById('wtxt').textContent=warns.join(' · ');}
+  else wb.classList.remove('show');
+
+  // Summary — show max rebate tier values
+  var tierLabel=maxRebTier!==null?'Tier '+(maxRebTier-1)+' (max rebate)':'—';
+  function sc(l,v,d,hl){
+    return '<div class="sc'+(hl?' hl':'')+'">'+
+      '<div class="sl">'+l+'</div><div class="sv">'+v+'</div>'+
+      (d?'<div class="sd">'+d+'</div>':'')+
+      '</div>';
+  }
+  var sg='';
+  sg+=sc('Merchant',gs('mxName')||'—');
+  sg+=sc('Scope',SC==='v'?'Venue':'Merchant',SC==='v'?'per venue / month':'all venues / month');
+  sg+=sc('Current VP/order',fv(curVPO),'from Looker');
+  sg+=sc('Max rebate tier',maxReb>0?maxReb.toFixed(2)+'%':type==='fee'?'enter fee':'enter rebate',tierLabel,true);
+  sg+=sc('Gross VP at max rebate',maxRebGross!==null?fk(maxRebGross):'—',SC==='m'?'all venues/month':'per venue/month',true);
+  sg+=sc('VP uplift at max rebate',maxRebVpDiff!==null?fk(maxRebVpDiff):'—','vs current VP');
+  document.getElementById('sumgrid').innerHTML=sg;
+}
+</script>
+</body>
+</html>
